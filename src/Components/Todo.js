@@ -1,14 +1,31 @@
-import React, { Fragment, useState, useEffect } from 'react';
+import React, { Fragment, useState, useEffect, useReducer } from 'react';
 import axios from 'axios';
 
 const todo = props => {
     const [todoName, setTodoName] = useState('');
-    const [todoList, setTodoList] = useState([]);
+    const [submittedTodo, setSubmittedTodo] = useState(null);
+    // const [todoList, setTodoList] = useState([]);
     // const [todoState, setTodoState] = useState({userInput: '', todoList: []})
 
     // the empty array passed as the second argument tells it to only run this function when the component mounts. If you want to run the api call when something changes, pass that variable into the array and it will listen for changes. 
 
     // The return statement in the first argument specifies what to do when the component unmounts. 
+
+    const todoListReducer = (state, action) => {
+        switch (action.type) {
+            case 'ADD':
+                return state.concat(action.payload);
+            case 'SET':
+                return action.payload;
+            case 'REMOVE':
+                return state.filter((todo) => todo.id !== action.payload);
+            default:
+                return state;
+        }
+    }
+
+    const [todoList, dispatch] = useReducer(todoListReducer, []);
+
     useEffect(() => {
         axios.get('https://hooks-testing.firebaseio.com/todos.json').then(res => {
             console.log(res);
@@ -17,7 +34,7 @@ const todo = props => {
             for (let key in todoData) {
                 todos.push({id: key, name: todoData[key].name})
             }
-            setTodoList(todos);
+            dispatch({type: 'SET', payload: todos});
         });
         return () => {
             console.log('Cleanup');
@@ -35,16 +52,22 @@ const todo = props => {
         }
     }, [])
 
+    useEffect(() => {
+        if (submittedTodo) {
+            dispatch({type: 'ADD', payload: submittedTodo});
+        }
+    }, [submittedTodo]);
+
     const inputChangeHandler = event => {
         setTodoName(event.target.value);
         // setTodoState({userInput: event.target.value, todoList: todoState.todoList})
     }
 
     const todoAddHandler = () => {
-        setTodoList(todoList.concat(todoName));
         axios.post('https://hooks-testing.firebaseio.com/todos.json', {name: todoName})
             .then(res => {
-                console.log(res);
+                const todoItem = {id: res.data.name, name: todoName};
+                setSubmittedTodo(todoItem);
             })
             .catch(err => {
                 console.log(err);
